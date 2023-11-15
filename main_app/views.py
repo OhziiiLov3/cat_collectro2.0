@@ -27,12 +27,31 @@ def cats_index(request):
 
 def cat_detail(request, cat_id):
     cat = Cat.objects.get(id=cat_id)
-
+    # create list of toys ids that cat has 
+    id_list = cat.toys.all().values_list('id')
+      # Now we can query for toys whose ids are not in the list using exclude
+    toys_cat_doesnt_have = Toy.objects.exclude(id__in=id_list)
     feeding_form = FeedingForm()
     return render(request,'cats/detail.html',{
         'cat': cat,
-        'feeding_form': feeding_form
+        'feeding_form': feeding_form,
+        "toys": toys_cat_doesnt_have
         })
+
+class CatCreate(CreateView):
+    model = Cat
+    fields = ['name', 'breed', 'description', 'age']
+    # fields = '__all__'
+    # success_url = '/cats/{cat.id}'
+
+class CatUpdate(UpdateView):
+    model = Cat
+    fields = ['breed','description', 'age']
+
+class CatDelete(DeleteView):
+    model = Cat
+    success_url = '/cats'
+
 
 def add_feeding(request,cat_id):
     form = FeedingForm(request.POST)
@@ -51,7 +70,8 @@ class ToyDetail(DetailView):
 
 class ToyCreate(CreateView):
     model = Toy
-    fields = '__all__'
+    # fields = '__all__'
+    
 
 class ToyUpdate(UpdateView):
     model = Toy
@@ -62,16 +82,10 @@ class ToyDelete(DeleteView):
     success_url = '/toys'
 
 
+def assoc_toy(request, cat_id, toy_id):
+    Cat.objects.get(id=cat_id).toys.add(toy_id)
+    return redirect('detail', cat_id=cat_id)
 
-class CatCreate(CreateView):
-    model = Cat
-    fields = '__all__'
-    # success_url = '/cats/{cat.id}'
-
-class CatUpdate(UpdateView):
-    model = Cat
-    fields = ['breed','description', 'age']
-
-class CatDelete(DeleteView):
-    model = Cat
-    success_url = '/cats'
+def remove_toy(request,cat_id, toy_id):
+    Cat.objects.get(id=cat_id).toys.remove(toy_id)
+    return redirect('detail',cat_id=cat_id)
