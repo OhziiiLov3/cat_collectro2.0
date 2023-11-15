@@ -1,8 +1,10 @@
 from django.shortcuts import render, redirect
-
+import uuid
+import boto3
+import os
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.generic import ListView, DetailView
-from .models import Cat, Toy
+from .models import Cat, Toy , Photo
 from .forms import FeedingForm
 
 # Create your views here.
@@ -70,7 +72,7 @@ class ToyDetail(DetailView):
 
 class ToyCreate(CreateView):
     model = Toy
-    # fields = '__all__'
+    fields = '__all__'
     
 
 class ToyUpdate(UpdateView):
@@ -89,3 +91,23 @@ def assoc_toy(request, cat_id, toy_id):
 def remove_toy(request,cat_id, toy_id):
     Cat.objects.get(id=cat_id).toys.remove(toy_id)
     return redirect('detail',cat_id=cat_id)
+
+def add_photo(request, cat_id):
+    # photo-file will be the "name" attribute on the <input type="file">
+    photo_file = request.FILES.get('photo-file', None)
+    if photo_file:
+        s3 = boto3.client('s3')
+    # need a unique "key" for S3 / needs image file extension too
+        key = uuid.uuid4().hex[:6] + photo_file.name[photo_file.name.rfind('.'):]
+        try:
+            bucket = os.environ['S3_BUCKET']
+            s3.upload_fileobj(photo_file, bucket, key)
+              # build the full url string
+            url = f"{os.environ['S3_BASE_URL']}{bucket}/{key}"
+            # assign to cat_id or cat (if you have a cat object)
+            Photo.objects.create(url=url, cat_id=cat_id)
+        except Exception as e:
+            print("An error occured uploading file to S3")
+            print(e)
+    return redirect('detail', cat_id=cat_id)
+
